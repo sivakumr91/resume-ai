@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Assisted Resume Analyzer & ATS Optimizer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PDF.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Mammoth.js CDN (for .docx parsing) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i data-lucide="cpu"></i>
+                </div>
+                <h2>ResumeAI</h2>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-tab="analyze-tab">
+                    <i data-lucide="file-text"></i>
+                    <span>Analyzer</span>
+                </button>
+                <button class="nav-btn" data-tab="dashboard-tab" id="nav-dashboard-btn" disabled>
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-btn" data-tab="instructions-tab">
+                    <i data-lucide="help-circle"></i>
+                    <span>Instructions</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator" id="api-status">
+                    <span class="status-dot green"></span>
+                    <span class="status-text">Server Connected</span>
+                </div>
+                <div class="version">v1.0.0</div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <header class="app-header">
+                <div class="header-title">
+                    <h1 id="page-title">Resume & ATS Analyzer</h1>
+                    <p class="subtitle">Optimize your resume against ATS filters using Google Gemini AI</p>
+                </div>
+                
+                <div class="theme-toggle">
+                    <button id="theme-btn" title="Toggle Theme">
+                        <i data-lucide="moon"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- TABS CONTAINER -->
+            <div class="tabs-container">
+                
+                <!-- TAB 1: ANALYZER -->
+                <div id="analyze-tab" class="tab-content active">
+                    <div class="analyzer-grid">
+                        <!-- Left Side: Inputs -->
+                        <div class="input-panel card">
+                            <h3><i data-lucide="file-up"></i> 1. Upload Resume</h3>
+                            <div class="dropzone" id="dropzone">
+                                <i data-lucide="upload-cloud" class="upload-icon"></i>
+                                <p class="dropzone-text">Drag & drop your resume (PDF or DOCX) here</p>
+                                <span class="dropzone-sub">or click to browse from files</span>
+                                <input type="file" id="file-input" accept=".pdf,.docx" style="display: none;">
+                            </div>
+                            
+                            <div class="file-info-bar" id="file-info-bar" style="display: none;">
+                                <div class="file-details">
+                                    <i data-lucide="file-check" class="check-icon"></i>
+                                    <div>
+                                        <h4 id="file-name">resume.pdf</h4>
+                                        <p id="file-size">1.2 MB</p>
+                                    </div>
+                                </div>
+                                <button class="btn-clear" id="btn-clear-file" title="Remove file">
+                                    <i data-lucide="x"></i>
+                                </button>
+                            </div>
+
+                            <div class="divider">
+                                <span>OR PASTE TEXT</span>
+                            </div>
+
+                            <div class="text-input-wrapper">
+                                <label for="resume-text"><i data-lucide="align-left"></i> Resume Raw Text</label>
+                                <textarea id="resume-text" placeholder="Paste your resume content here if you don't have a PDF/DOCX file..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Right Side: JD Input & Run -->
+                        <div class="jd-panel card">
+                            <h3><i data-lucide="briefcase"></i> 2. Target Job Description</h3>
+                            <div class="text-input-wrapper jd-wrapper">
+                                <label for="jd-text"><i data-lucide="text-quote"></i> Paste Job Description</label>
+                                <textarea id="jd-text" placeholder="Paste the job description of the role you are applying for here..."></textarea>
+                            </div>
+
+                            <div class="action-bar">
+                                <button class="btn-primary" id="btn-analyze">
+                                    <i data-lucide="sparkles"></i>
+                                    <span>Analyze Resume</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: DASHBOARD -->
+                <div id="dashboard-tab" class="tab-content">
+                    <!-- Loading View -->
+                    <div id="loading-spinner" class="loading-container" style="display: none;">
+                        <div class="spinner"></div>
+                        <h3>Analyzing Resume...</h3>
+                        <p id="loading-status-text">Extracting resume text and matching with keywords</p>
+                    </div>
+
+                    <!-- Dashboard Results View -->
+                    <div id="dashboard-results" style="display: none;">
+                        <div class="results-top-bar">
+                            <div class="analysis-meta">
+                                <span class="badge" id="analysis-type-badge">Gemini AI Analysis</span>
+                                <span class="date" id="analysis-date">June 25, 2026</span>
+                            </div>
+                            <button class="btn-secondary" id="btn-print-pdf">
+                                <i data-lucide="download"></i>
+                                <span>Export Report (PDF)</span>
+                            </button>
+                        </div>
+
+                        <!-- Score Cards Summary -->
+                        <div class="dashboard-summary-grid">
+                            <!-- Large Circular Score -->
+                            <div class="card score-hero-card">
+                                <h3>ATS Score</h3>
+                                <div class="chart-container-radial">
+                                    <canvas id="overallScoreChart"></canvas>
+                                    <div class="score-center">
+                                        <span class="score-number" id="overall-score-val">0</span>
+                                        <span class="score-label">/100</span>
+                                    </div>
+                                </div>
+                                <div class="rating-badge" id="score-rating-badge">Low Match</div>
+                            </div>
+
+                            <!-- Detailed Parameters Grid -->
+                            <div class="score-parameters-grid">
+                                <!-- Parameter 1 -->
+                                <div class="card param-card">
+                                    <div class="param-header">
+                                        <div class="param-icon p-skills"><i data-lucide="code"></i></div>
+                                        <div>
+                                            <h4>Skill Match</h4>
+                                            <p class="param-desc">Tech & Soft skills match</p>
+                                        </div>
+                                    </div>
+                                    <div class="param-value-container">
+                                        <span class="param-val" id="val-skills">0%</span>
+                                        <div class="progress-bar-bg"><div class="progress-bar" id="bar-skills" style="width: 0%"></div></div>
+                                    </div>
+                                </div>
+
+                                <!-- Parameter 2 -->
+                                <div class="card param-card">
+                                    <div class="param-header">
+                                        <div class="param-icon p-keywords"><i data-lucide="key-round"></i></div>
+                                        <div>
+                                            <h4>Keyword Overlap</h4>
+                                            <p class="param-desc">JD vocabulary matching</p>
+                                        </div>
+                                    </div>
+                                    <div class="param-value-container">
+                                        <span class="param-val" id="val-keywords">0%</span>
+                                        <div class="progress-bar-bg"><div class="progress-bar" id="bar-keywords" style="width: 0%"></div></div>
+                                    </div>
+                                </div>
+
+                                <!-- Parameter 3 -->
+                                <div class="card param-card">
+                                    <div class="param-header">
+                                        <div class="param-icon p-completeness"><i data-lucide="check-square"></i></div>
+                                        <div>
+                                            <h4>Completeness</h4>
+                                            <p class="param-desc">Standard resume sections</p>
+                                        </div>
+                                    </div>
+                                    <div class="param-value-container">
+                                        <span class="param-val" id="val-completeness">0%</span>
+                                        <div class="progress-bar-bg"><div class="progress-bar" id="bar-completeness" style="width: 0%"></div></div>
+                                    </div>
+                                </div>
+
+                                <!-- Parameter 4 -->
+                                <div class="card param-card">
+                                    <div class="param-header">
+                                        <div class="param-icon p-formatting"><i data-lucide="layout"></i></div>
+                                        <div>
+                                            <h4>Formatting & Contact</h4>
+                                            <p class="param-desc">Contact links & structure</p>
+                                        </div>
+                                    </div>
+                                    <div class="param-value-container">
+                                        <span class="param-val" id="val-formatting">0%</span>
+                                        <div class="progress-bar-bg"><div class="progress-bar" id="bar-formatting" style="width: 0%"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Skills Gap & Details Analysis -->
+                        <div class="dashboard-details-grid">
+                            <!-- Skill Analyzer -->
+                            <div class="card analysis-details-card">
+                                <h3><i data-lucide="sparkles" class="sec-icon green"></i> Skills Profile Analysis</h3>
+                                <div class="skills-split-container">
+                                    <div class="skills-sub-panel">
+                                        <h4 class="title-found"><i data-lucide="check-circle-2"></i> Found in Resume</h4>
+                                        <div class="tags-container" id="container-found-skills">
+                                            <!-- Dynamically added tags -->
+                                        </div>
+                                    </div>
+                                    <div class="skills-sub-panel">
+                                        <h4 class="title-missing"><i data-lucide="alert-circle"></i> Missing Target Skills</h4>
+                                        <div class="tags-container" id="container-missing-skills">
+                                            <!-- Dynamically added tags -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Recommendations / Improvements -->
+                            <div class="card analysis-details-card">
+                                <h3><i data-lucide="list-checks" class="sec-icon blue"></i> Actionable Improvements</h3>
+                                <ul class="checklist" id="container-improvements">
+                                    <!-- Dynamically added list items -->
+                                </ul>
+                            </div>
+
+                            <!-- Resume Contact Info parsed -->
+                            <div class="card meta-info-card">
+                                <h3><i data-lucide="user-check" class="sec-icon purple"></i> Contact & Link Integrity</h3>
+                                <div class="meta-info-grid">
+                                    <div class="meta-item">
+                                        <span class="label">Email:</span>
+                                        <span class="value" id="res-email">Not Found</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <span class="label">Phone:</span>
+                                        <span class="value" id="res-phone">Not Found</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <span class="label">LinkedIn Link:</span>
+                                        <span class="value" id="res-linkedin">Not Found</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <span class="label">GitHub Link:</span>
+                                        <span class="value" id="res-github">Not Found</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ATS Optimization Tips -->
+                            <div class="card meta-info-card">
+                                <h3><i data-lucide="info" class="sec-icon gold"></i> Pro ATS Tips</h3>
+                                <ul class="checklist" id="container-ats-tips">
+                                    <!-- Dynamically added tips -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: INSTRUCTIONS -->
+                <div id="instructions-tab" class="tab-content">
+                    <div class="instructions-panel card">
+                        <h2>How to Use the Resume Analyzer</h2>
+                        
+                        <div class="step-guide">
+                            <div class="step-item">
+                                <div class="step-num">1</div>
+                                <div class="step-text">
+                                    <h3>Configure your environment (.env)</h3>
+                                    <p>Open the <code>.env</code> file in the <code>Source_Code</code> directory and paste your Gemini API Key in the field: <code>GEMINI_API_KEY=your_key_here</code>.</p>
+                                    <p class="note"><strong>Where to get a key?</strong> Go to <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a>, log in with your Google account, and click <strong>Create API Key</strong>.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="step-item">
+                                <div class="step-num">2</div>
+                                <div class="step-text">
+                                    <h3>Start the Server</h3>
+                                    <p>Run the local server using Python. In the terminal inside <code>Source_Code/</code>, run: <code>python server.py</code>. This starts the web application on <code>http://localhost:3000</code>.</p>
+                                </div>
+                            </div>
+
+                            <div class="step-item">
+                                <div class="step-num">3</div>
+                                <div class="step-text">
+                                    <h3>Upload Resume & Job Description</h3>
+                                    <p>Drop your resume in PDF/DOCX format, or paste the raw text. Then paste the job description you are targeting in the respective input areas.</p>
+                                </div>
+                            </div>
+
+                            <div class="step-item">
+                                <div class="step-num">4</div>
+                                <div class="step-text">
+                                    <h3>Generate & Download the Analysis</h3>
+                                    <p>Click "Analyze Resume" to invoke the Gemini API request. Review the generated match scores, skill gap analysis, contact integrity validations, and recommendations. Click "Export Report (PDF)" to save a clean printer-formatted document.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="fallback-note card">
+                            <h3><i data-lucide="alert-triangle"></i> Fallback Parsing Engine</h3>
+                            <p>If the server is started without a <code>GEMINI_API_KEY</code>, the application will automatically enter <strong>Fallback Mode</strong>. It uses a local client-side NLP dictionary match. While this is less conversational than Gemini, it computes skill overlap, checks contact details, performs section checks, and runs entirely offline without external API dependencies!</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Custom Script -->
+    <script src="app.js"></script>
+    <script>
+        // Initialize lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
